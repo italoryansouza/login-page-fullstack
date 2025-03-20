@@ -1,29 +1,36 @@
-from django.shortcuts import render
-from .forms import RegisterForm, LoginForm
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.permissions import IsAuthenticated
+from .serializers import RegisterSerializer, LoginSerializer, get_tokens_for_user, UserSerializer
 
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
 
-def register(request):  
-    if request.method == 'POST':
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            user= form.save(commit= False)
-            user.set_password(form.cleaned_data['password'])
-            user.save()
-            login(request, user)
-            return redirect("Home")
-    else:
-        form = RegisterForm()
-    return render(request, 'register.html', {'form': form})
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user= serializer.save()
+            return Response({'message': 'User registred successfully'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-def user_login(request):
-    if request.method == 'POST':
-        form = LoginForm(data=request.POST)
-        if form.is_valid():
-            user= form.get_user()
-            login(request, user)
-            return redirect("Welcome")
-    else:
-        form= LoginForm()
+class LoginView(APIView):
+    permission_classes = [AllowAny]
 
-    return render(request, 'login.html', {'form': form})
-# Create your views here.
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data
+            tokens = get_tokens_for_user(user)
+            return Response(tokens, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+
+class UserView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
