@@ -4,33 +4,26 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-from .serializers import RegisterSerializer, LoginSerializer, get_tokens_for_user, UserSerializer
+from rest_framework import mixins, generics
+from rest_framework.generics import GenericAPIView
+from .serializers import RegisterSerializer, LoginSerializer
+from django.contrib.auth.models import User
+from django.http import JsonResponse
 
-class RegisterView(APIView):
-    permission_classes = [AllowAny]
+class RegisterView(mixins.CreateModelMixin, generics.GenericAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
 
-    def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            user= serializer.save()
-            return Response({'message': 'User registred successfully'}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
 
-class LoginView(APIView):
-    permission_classes = [AllowAny]
+class LoginView(GenericAPIView):
+    serilaizer_class = LoginSerializer
 
-    def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.validated_data
-            tokens = get_tokens_for_user(user)
-            return Response(tokens, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=data.request)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        login(request, user)
 
-class UserView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return JsonResponse ({'message': "login efetuado com sucesso!"})
